@@ -114,7 +114,7 @@ def get_nearest_calibration_frames(obstype, n_frames, filename, search_host, sea
     return [make_s3_prefix_from_filename(f) for f in filenames]
 
 
-def thaw_files(object_keys, bucket_name, s3):
+def thaw_files(object_keys, bucket_name, s3, thaw_mode='Standard'):
     for object_key in object_keys:
         try:
             s3.restore_object(Bucket=bucket_name,
@@ -122,7 +122,7 @@ def thaw_files(object_keys, bucket_name, s3):
                               RestoreRequest={
                                   'Days': 1,  # Number of days to keep the restored copy
                                   'GlacierJobParameters': {
-                                      'Tier': 'Bulk'
+                                      'Tier': thaw_mode
                                       }
                                   }
                               )
@@ -165,6 +165,7 @@ if __name__ == '__main__':
     parser.add_argument('--aws-secret-key', required=True, help='AWS secret access key')
     parser.add_argument('--aws-region', default='us-west-2', help='AWS region for the bucket')
     parser.add_argument('--dry-run', action='store_true', help='Dry run mode')
+    parser.add_argument('--thaw-mode', default='Standard', choices=['Standard', 'Bulk'])
 
     args = parser.parse_args()
 
@@ -198,7 +199,7 @@ if __name__ == '__main__':
                                 region_name=args.aws_region)
     s3 = aws_session.client('s3')
     # thaw the files
-    thaw_files(files_to_restore, args.bucket, s3)
+    thaw_files(files_to_restore, args.bucket, s3, thaw_mode=args.thaw_mode)
 
     # Wait until the files are available
     wait_for_files_to_thaw(files_to_restore, args.bucket, s3)
