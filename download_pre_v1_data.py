@@ -182,9 +182,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Pick column to match fits file name in image list.
-    frames = ascii.read(args.frame_list, format='no_header')['col5']
-
-    files_to_restore = []
+    files_to_restore = ascii.read(args.frame_list, format='no_header')['col1']
 
     search_host = OpenSearch(args.opensearch_host, timeout=60)
 
@@ -192,31 +190,6 @@ if __name__ == '__main__':
                                 aws_secret_access_key=args.aws_secret_key,
                                 region_name=args.aws_region)
     s3 = aws_session.client('s3')
-
-    for frame in frames:
-        # Stage the raw e00 version of the file
-        files_to_restore.append(make_s3_prefix_from_filename(frame.replace('e90.fits', 'e00.fits')))
-        # Stage the nearest 50 bias frames from the file
-        files_to_restore += get_nearest_calibration_frames('BIAS', 50, frame, search_host, args.opensearch_index)
-        # Stage the 20 nearest dark frames
-        files_to_restore += get_nearest_calibration_frames('DARK', 20, frame, search_host, args.opensearch_index)
-        # Stage the nearest 10 flat frames
-        files_to_restore += get_nearest_calibration_frames('SKYFLAT', 10, frame, search_host, args.opensearch_index)
-
-    # Remove any duplicates in the list of files to restore
-    files_to_restore = list(set(files_to_restore))
-
-    if args.dry_run:
-        print('Dry run- Would restore the following: mode enabled.')
-        for f in files_to_restore:
-            print(f)
-        sys.exit(0)
-
-    # thaw the files
-    #thaw_files(files_to_restore, args.bucket, s3, thaw_mode=args.thaw_mode)
-
-    # Wait until the files are available
-    #wait_for_files_to_thaw(files_to_restore, args.bucket, s3)
 
     # Download the files from s3
     download_thawed_files(files_to_restore, args.output_dir, args.bucket, s3)
